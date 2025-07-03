@@ -9,3 +9,10 @@ class APIKey(SQLModel, table=True):
 
 class APIKeyCreate(SQLModel):
     owner : str
+
+class ResponseLog(SQLModel, table = True):
+    id : int | None = Field(default=None, primary_key=True)
+    api_key : str = Field(index=True, nullable=False)
+    latency : float
+    status_code : int
+    url : str

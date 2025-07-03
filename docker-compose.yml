@@ -9,7 +9,7 @@ services:
       - .:/app
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/ratemyapi
-      - REDIS_URL=redis:redis//6379
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - db
       - redis

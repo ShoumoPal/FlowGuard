@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Query, Header
-from .models import SQLModel, APIKey, APIKeyCreate
+from .models import SQLModel, APIKey, APIKeyCreate, ResponseLog
 from .database import engine, Session, get_session
 from .proxy import forward_request
+from .redis_utils import check_rate_limit
 from contextlib import asynccontextmanager
 from sqlmodel import select
 import secrets
@@ -43,7 +44,23 @@ async def proxy(request : Request,
     if not key_obj:
         raise HTTPException(status_code=400, detail='Keys don\'t match')
     
+    # Rate limit check
+    check_rate_limit(api_key, 2)
+    
+    # Proxy the request
     result = await forward_request(request=request, destination_url=url)
+
+    log = ResponseLog(
+        api_key=api_key,
+        latency=result['latency'],
+        url=url,
+        status_code=result['status_code']
+    )
+
+    session.add(log)
+    session.commit()
+    session.refresh(log)
+
     return result
 
 # Endpoint for testing data
@@ -51,3 +68,6 @@ async def proxy(request : Request,
 async def show_all_keys(session : Session = Depends(get_session)):
     return session.exec(select(APIKey)).all()
 
+@app.get('/view_logs')
+async def view_all_logs(session : Session = Depends(get_session)):
+    return session.exec(select(ResponseLog)).all()
