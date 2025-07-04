@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Query, Header
-from .models import SQLModel, APIKey, APIKeyCreate, ResponseLog
+from .models import SQLModel, APIKey, APIKeyCreate, ResponseLog, Metrics
 from .database import engine, Session, get_session
 from .proxy import forward_request
-from .redis_utils import check_rate_limit
+from .redis_utils import check_rate_limit, r
 from contextlib import asynccontextmanager
 from sqlmodel import select
 import secrets
@@ -62,6 +62,26 @@ async def proxy(request : Request,
     session.refresh(log)
 
     return result
+
+@app.get('/metrics/{api_key}')
+async def get_metrics(api_key : str, session : Session = Depends(get_session)):
+    logs = session.exec(select(ResponseLog).where(ResponseLog.api_key == api_key)).all()
+
+    if not logs:
+        raise HTTPException(status_code=400 ,detail='No logs available for this API_Key')
+
+    total_req = len(logs)
+    avg_latency = sum(l.latency for l in logs) / total_req
+    redis_key = f'ratelimit:{api_key}'
+    rate_limit_count = int(r.get(redis_key) or 0)
+    codes = [l.status_code for l in logs]
+
+    return Metrics(
+        total_requests=total_req,
+        avg_latency=avg_latency,
+        recent_rate_limited_request_count=rate_limit_count,
+        recent_codes=codes
+    )
 
 # Endpoint for testing data
 @app.get('/all_keys')
