@@ -72,7 +72,7 @@ async def get_metrics(api_key : str, session : Session = Depends(get_session)):
 
     total_req = len(logs)
     avg_latency = sum(l.latency for l in logs) / total_req
-    redis_key = f'ratelimit:{api_key}'
+    redis_key = f'ratelimit:{api_key}:count'
     rate_limit_count = int(r.get(redis_key) or 0)
     codes = [l.status_code for l in logs]
 

@@ -16,3 +16,15 @@ logger.addHandler(console_handler)
 console_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
 logger.setLevel(logging.INFO)
+
+# Custom rate limiter logger
+
+rate_logger = logging.getLogger('rate_limit')
+rate_file_handler = logging.FileHandler('./logs/rate_limit.log', mode='a')
+rate_formatter = logging.Formatter(
+    fmt='Time created : {asctime}\n\n {message}',
+    style='{'
+)
+rate_logger.addHandler(rate_file_handler)
+file_handler.setFormatter(rate_formatter)
+rate_logger.setLevel(logging.INFO)
