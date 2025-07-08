@@ -2,7 +2,6 @@ import httpx
 import json
 import time
 from app.logger import rate_logger
-from app.redis_utils import r
 import asyncio
 from collections import Counter
 
@@ -35,25 +34,13 @@ async def run_load_test():
 def report():
     latencies = [latency for _, latency in results]
     avg_latency = sum(latencies) / len(latencies) if len(latencies) > 0 else 0
-    r_key = f'ratelimit:{API_KEY}:count'
-    print(r_key)
-    rate_limit_count = r.get(r_key)
+    successful_attempts = len([code for code, _ in results if code == 200])
+    limited_attempts = len(results) - successful_attempts
     status_codes = Counter([code for code, _ in results])
-    rate_logger.info(f'\nTotal attempts: {len(latencies)}\nAverage latency of the recent test : {avg_latency}\nRate limited attempts : {rate_limit_count}')
-    rate_logger.info('Status code summary:\n')
+    rate_logger.info(f'\nTotal attempts: {len(results)}\nSuccessful attempts: {successful_attempts}\nRate limited attempts: {limited_attempts}\nAverage latency of the recent test : {avg_latency}')
+    rate_logger.info('Status code summary:')
     for code, count in status_codes.items():
-        rate_logger.info(f'{code}:{count}\n')
-
-    redis_keys = r.keys(f'ratelimit:{API_KEY}*')
-    print(f'{redis_keys}')
-    for key in redis_keys:
-        print(f'{r.get(key)}')
-    
-    print("[DEBUG] Pinging Redis...")
-    try:
-        print("[DEBUG] Redis PING:", r.ping())
-    except Exception as e:
-        print("[DEBUG] Redis connection failed:", e)
+        rate_logger.info(f'{code}:{count}')
 
 if __name__ == '__main__':
     asyncio.run(run_load_test())
