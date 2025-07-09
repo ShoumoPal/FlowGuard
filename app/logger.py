@@ -28,3 +28,15 @@ rate_formatter = logging.Formatter(
 rate_logger.addHandler(rate_file_handler)
 file_handler.setFormatter(rate_formatter)
 rate_logger.setLevel(logging.INFO)
+
+# Custom load balancer log
+
+load_logger = logging.Logger('load_balance')
+load_file_hander = logging.FileHandler('./logs/load_balance.log', mode='a')
+load_formatter = logging.Formatter(
+    '{asctime} : {levelname} : {message}',
+    style='{'
+)
+load_logger.addHandler(load_file_hander)
+load_file_hander.formatter(load_formatter)
+load_logger.setLevel(logging.INFO)
