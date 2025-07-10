@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 from .logger import load_logger
 import asyncio
+from fastapi import HTTPException
 
 @dataclass
 class Backend:
@@ -17,7 +18,8 @@ class LoadBalancer:
     def __init__(self):
         self.backends : List[Backend] = []
         self.index : int = 0
-    
+        self.lock = asyncio.Lock()
+
     def configure_load_balancer(self, backend_list : List[dict]):
         for backend in backend_list:
             self.backends.append(Backend(url=backend['url'], health=backend['health'], server_id=backend['server_id'], response_time=0.0, failure_count=0))
@@ -26,31 +28,39 @@ class LoadBalancer:
         try:
             async with httpx.AsyncClient() as client:
                 start_time = time.time()
-                reponse = await client.get(backend.url)
+                response = await client.get(backend.url + '/health', timeout=5.0)
                 end_time = time.time()
 
                 backend.response_time = (end_time - start_time) * 1000
 
-                if reponse.status_code == 200:
+                if response.status_code == 200:
                     backend.health = 'Healthy'
                 else:
                     backend.health = 'Unhealthy'
+                    backend.failure_count += 1
+                    load_logger.info(f'Backend {backend.server_id} set to status {backend.health}')
         except Exception as e:
-            load_logger.info(f'Error while performing health check on {backend.server_id} running on {backend.url}')
+            load_logger.error(f'Error while performing health check on {backend.server_id} running on {backend.url}')
+            load_logger.error(f'Reason : {str(e)}')
     
     async def periodic_health_check(self, interval : float):
         while True:
             try:
                 for backend in self.backends:
                     await self.health_check(backend)
-                    asyncio.sleep(interval)
+                    await asyncio.sleep(interval)
             except Exception as e:
-                load_logger.debug('Error in periodic health check function...')
+                load_logger.error('Error in periodic health check function...')
 
     async def get_server(self):
         '''Getting a backend server using Round-Robin method'''
         backends = self.get_healthy_servers()
-        #TODO
+        if not backends:
+            raise HTTPException('No healthy backends available')
+        async with self.lock:
+            backend = backends[self.index]
+            self.index = (self.index + 1) % len(backends)
+        return backend
     
     def get_healthy_servers(self):
         return [backend for backend in self.backends if backend.health == 'Healthy']

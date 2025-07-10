@@ -15,7 +15,7 @@ async def forward_request(request : Request, destination_url : str):
                 url=destination_url,
                 headers=headers,
                 content=body,
-                timeout=10.0
+                timeout=3.0
             )
             end = time.monotonic()
 

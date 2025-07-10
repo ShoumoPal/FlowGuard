@@ -6,7 +6,7 @@ from .logger import logger
 redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
 r = Redis.from_url(redis_url, decode_responses=True)
 
-def check_rate_limit(api_key : str, limit : int = 2):
+def check_rate_limit(api_key : str, limit : int = 60):
     key = f'ratelimit:{api_key}'
     current = r.get(key)
 

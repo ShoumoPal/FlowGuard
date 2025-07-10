@@ -38,5 +38,5 @@ load_formatter = logging.Formatter(
     style='{'
 )
 load_logger.addHandler(load_file_hander)
-load_file_hander.formatter(load_formatter)
+load_file_hander.setFormatter(load_formatter)
 load_logger.setLevel(logging.INFO)

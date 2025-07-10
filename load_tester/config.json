@@ -1,5 +1,5 @@
 {
     "tries":20,
-    "proxy_url":"http://localhost:8000/proxy?url=https://httpbin.org/get",
-    "api_key":"3a5c10ca3f1901213947268afe3241ea"
+    "proxy_url":"http://localhost:8000/proxy",
+    "api_key":"a1e18844aa800313e888898a078d0ef1"
 }

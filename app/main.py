@@ -6,17 +6,35 @@ from .redis_utils import check_rate_limit, r
 from contextlib import asynccontextmanager
 from sqlmodel import select
 import secrets
+from .load_balancer import LoadBalancer, Backend
+import asyncio
 
 @asynccontextmanager
 async def lifespan(app : FastAPI):
     SQLModel.metadata.create_all(engine)
+
+    backends = [
+        {'url':'http://host.docker.internal:8001', 'health':'Healthy', 'server_id':'server_1'},
+        {'url':'http://host.docker.internal:8002', 'health':'Healthy', 'server_id':'server_2'},
+        {'url':'http://host.docker.internal:8003', 'health':'Healthy', 'server_id':'server_3'}
+    ]
+
+    balancer_instance = LoadBalancer()
+    balancer_instance.configure_load_balancer(backend_list=backends)
+
+    app.state.balancer = balancer_instance
+
+    task = asyncio.create_task(balancer_instance.periodic_health_check(10.0))
+
     yield
+
+    task.cancel()
 
 app = FastAPI(lifespan=lifespan)
 
 @app.get('/')
 async def root():
-    return('Crazy')
+    return('Welcome to my project')
 
 @app.post('/register')
 async def register_key(payload : APIKeyCreate, session : Session = Depends(get_session)):
@@ -35,10 +53,10 @@ async def register_key(payload : APIKeyCreate, session : Session = Depends(get_s
         'owner' : api_key.owner
     }
 
-@app.post('/proxy')
+@app.get('/proxy')
 async def proxy(request : Request,
-                url : str = Query(..., description='URL to proxy to'),
-                api_key : str = Header(..., alias='X_API_Key'),
+                #url : str = Query(..., description='URL to proxy to'),
+                api_key : str = Header(..., alias='X-API-Key'),
                 session : Session = Depends(get_session)):
     key_obj = session.exec(select(APIKey).where(APIKey.key == api_key)).first()
     if not key_obj:
@@ -47,13 +65,15 @@ async def proxy(request : Request,
     # Rate limit check
     check_rate_limit(api_key, 2)
     
+    backend : Backend = await request.app.state.balancer.get_server()
+
     # Proxy the request
-    result = await forward_request(request=request, destination_url=url)
+    result = await forward_request(request=request, destination_url=backend.url)
 
     log = ResponseLog(
         api_key=api_key,
         latency=result['latency'],
-        url=url,
+        url=backend.url,
         status_code=result['status_code']
     )
 
@@ -91,3 +111,10 @@ async def show_all_keys(session : Session = Depends(get_session)):
 @app.get('/view_logs')
 async def view_all_logs(session : Session = Depends(get_session)):
     return session.exec(select(ResponseLog)).all()
+
+@app.get('/server')
+async def get_backend(request : Request):
+    backend = await request.app.state.balancer.get_server()
+    return {'Server returned':backend.server_id,
+            'URL':backend.url}
+

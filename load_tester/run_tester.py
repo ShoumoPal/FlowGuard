@@ -4,6 +4,7 @@ import time
 from app.logger import rate_logger
 import asyncio
 from collections import Counter
+from httpcore import TimeoutException
 
 config = {}
 with open(file='load_tester/config.json', mode='r') as f:
@@ -17,14 +18,15 @@ results = []
 
 async def send_requests(index):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             start_time = time.perf_counter()
-            response = await client.post(URL, headers={'X_API_Key': API_KEY})
+            #print(f"Sending request to : {API_KEY} : {URL}")
+            response = await client.get(URL, headers={'X-API-Key': API_KEY})
             latency = (time.perf_counter() - start_time) * 1000
             results.append((response.status_code, latency))
             rate_logger.info(f'response for {API_KEY} : {URL} : {response.status_code}')
-    except Exception as e:
-        rate_logger.info(f'Error sending request to {URL} with key {API_KEY}')
+    except TimeoutException as e:
+        rate_logger.info(f'{str(e)}')
     
 async def run_load_test():
     tasks = [send_requests(i) for i in range(TRIES)]

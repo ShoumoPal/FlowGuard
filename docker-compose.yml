@@ -8,7 +8,7 @@ services:
     volumes:
       - .:/app
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ratemyapi
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/flowguard
       - REDIS_URL=redis://redis:6379
     depends_on:
       - db
@@ -21,7 +21,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ratemyapi
+      POSTGRES_DB: flowguard
     ports:
       - "5432:5432"
   
