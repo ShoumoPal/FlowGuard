@@ -56,12 +56,25 @@ class LoadBalancer:
         '''Getting a backend server using Round-Robin method'''
         backends = self.get_healthy_servers()
         if not backends:
-            raise HTTPException('No healthy backends available')
+            raise HTTPException(status_code=502, detail='No healthy backends available')
         async with self.lock:
             backend = backends[self.index]
             self.index = (self.index + 1) % len(backends)
+        load_logger.info(f"Returned backend : {backend.server_id}")
         return backend
     
     def get_healthy_servers(self):
         return [backend for backend in self.backends if backend.health == 'Healthy']
+    
+    def get_server_stats(self):
+        res = []
+        for i, backend in enumerate(self.backends):
+            res.append({
+                'id' : i + 1,
+                'URL' : backend.url,
+                'Server ID' : backend.server_id,
+                'Response time' : backend.response_time,
+                'Failure count' : backend.failure_count
+            })
+        return res
                 

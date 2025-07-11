@@ -8,6 +8,7 @@ from sqlmodel import select
 import secrets
 from .load_balancer import LoadBalancer, Backend
 import asyncio
+from .logger import logger
 
 @asynccontextmanager
 async def lifespan(app : FastAPI):
@@ -62,10 +63,13 @@ async def proxy(request : Request,
     if not key_obj:
         raise HTTPException(status_code=400, detail='Keys don\'t match')
     
+    logger.info(f"Proxy endpoint run for {api_key}")
+
     # Rate limit check
-    check_rate_limit(api_key, 2)
+    check_rate_limit(api_key, 5)
     
     backend : Backend = await request.app.state.balancer.get_server()
+    logger.info(f"Fetched backend : {backend.server_id}")
 
     # Proxy the request
     result = await forward_request(request=request, destination_url=backend.url)
@@ -117,4 +121,9 @@ async def get_backend(request : Request):
     backend = await request.app.state.balancer.get_server()
     return {'Server returned':backend.server_id,
             'URL':backend.url}
+
+@app.get('/server_stats')
+def get_server_stats(request : Request):
+    l = request.app.state.balancer.get_server_stats()
+    return l
 

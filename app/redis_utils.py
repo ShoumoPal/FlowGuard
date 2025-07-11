@@ -11,7 +11,7 @@ def check_rate_limit(api_key : str, limit : int = 60):
     current = r.get(key)
 
     if current and int(current) >= limit:
-        logger.info(f'Rate limit exceeded for API key : {api_key}')
+        #logger.info(f'Rate limit exceeded for API key : {api_key}')
         r.incr(f'ratelimit:{api_key}:count', amount=1) # Incrementing total rate limited count for specific API key
         raise HTTPException(status_code=429, detail='Rate limit exceeded')
 

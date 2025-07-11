@@ -1,5 +1,5 @@
 {
-    "tries":20,
+    "tries":10,
     "proxy_url":"http://localhost:8000/proxy",
-    "api_key":"a1e18844aa800313e888898a078d0ef1"
+    "api_key":"90a050ec2767cd4d6f5cc92081dfe4a4"
 }
